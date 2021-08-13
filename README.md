@@ -41,7 +41,7 @@ As of now, no official image is provided. You can build one yourself with:
 Launch it with:
 
 ```bash
-  docker run \
+  docker run -ti \
    -e "OS_PROJECT_NAME=my_fancy_project" \
    -e "OS_PASSWORD=change_me" \
    -e "OS_USERNAME=guest" \
