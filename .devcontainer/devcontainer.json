@@ -1,0 +1,47 @@
+// For format details, see https://aka.ms/devcontainer.json
+// For sample development container in python3 see https://github.com/microsoft/vscode-dev-containers/tree/v0.183.0/containers/python-3
+{
+	"name": "Python 3",
+	"build": {
+		"dockerfile": "../Dockerfile",
+		"context": "..",
+		"args": { 
+			"DEV_CONTAINER": "true"
+		}
+	},
+
+	// Set *default* container specific settings.json values on container create.
+	"settings": { 
+		"python.pythonPath": "/usr/bin/python3",
+		"python.languageServer": "Pylance",
+		"python.linting.enabled": true,
+		"python.linting.pylintEnabled": true,
+		"python.formatting.autopep8Path": "/usr/bin/autopep8",
+		"python.formatting.blackPath": "/usr/bin/black",
+		"python.formatting.yapfPath": "/usr/bin/yapf3",
+		"python.linting.banditPath": "/usr/bin/bandit",
+		"python.linting.flake8Path": "/usr/bin/flake8",
+		"python.linting.mypyPath": "/usr/bin/mypy",
+		"python.linting.pycodestylePath": "/usr/bin/pydocstyle",
+		"python.linting.pydocstylePath": "/usr/bin/pydocstyle",
+		"python.linting.pylintPath": "/usr/bin/pylint"
+	},
+
+	// Add the IDs of extensions you want installed when the container is created.
+	"extensions": [
+		"ms-python.python",
+		"ms-python.vscode-pylance"
+	],
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	"portsAttributes": {
+		"9103": {
+			// open "/metrics"
+			"label": "Prometheus Metrics Page",
+			"onAutoForward": "openBrowser"
+		}
+	},
+
+}

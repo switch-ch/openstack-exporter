@@ -1,0 +1,30 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "openstack-exporter-sample",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/openstack-exporter/openstack-exporter.py",
+            "console": "integratedTerminal",
+            "env": {
+                "OS_PROJECT_NAME": "my_fancy_project",
+                "OS_PASSWORD": "change_me",
+                "OS_USERNAME": "guest",
+
+                "OS_AUTH_URL": "https://keystone.cloud.switch.ch/v3",
+                "OS_REGION_NAME": "regionOne",
+
+                "OS_USER_DOMAIN_NAME": "default",
+                "OS_PROJECT_DOMAIN_NAME": "default",
+                "OS_EXPORTER_INTERVAL_SECONDS": "5",
+                "OS_EXPORTER_API_EXCLUDE": "nova_ec2,s3,magnum,designate,cinderv2"
+            },
+            "envFile": "${workspaceFolder}/env",
+            "justMyCode": false
+        }
+    ]
+}
