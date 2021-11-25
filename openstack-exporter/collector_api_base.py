@@ -121,10 +121,11 @@ class CollectorAPIBase(object):
     # the prometheus library does not do this automatically for counter no longer being updated.
     def savely_remove_labels(self, metric, label_values):
         try:
-            self.metrics[metric].remove(*list(label_values))
-        except:
-            # We are fine with the fact that the label values are not present. this can happen sometimes.
-            pass
+            labels = list(label_values)
+            labels = labels[0:len(self.metrics[metric]._labelnames)]
+            self.metrics[metric].remove(*labels)
+        except Exception as e:
+            logger.debug("Error removing metric: %s(%s): %s", metric, str(label_values), str(e))
 
     def disable_stats_collection(self, api_name=None):
         if not api_name:
