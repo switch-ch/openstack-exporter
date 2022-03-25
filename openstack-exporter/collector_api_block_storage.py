@@ -1,28 +1,36 @@
-
-from openstack import block_storage
+"""
+Volume / Cinder collector
+"""
+import logging
+#from openstack import block_storage
 from collector_api_base import CollectorAPIBase
 from resources_block_storage import Service
 from resources_dummy import DummyApiVersions1Up
 
-import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 class CollectorAPIBlockStorage(CollectorAPIBase):
+    """
+    Cinder
+    """
+    # pylint: disable=fixme, too-many-arguments
     def __init__(
             self,
             config,
-            os,
+            openstack,
             metrics,
             api_name,
             project_name,
             name_prefix
-            ):
-        super().__init__(config, os, metrics, api_name, project_name, name_prefix, [DummyApiVersions1Up])
+        ):
+        self.data = {}
+        super().__init__(config, openstack, metrics, api_name, project_name, name_prefix,
+                         [DummyApiVersions1Up])
 
 
-    def collectMicroServiceState(self):
+    def collect_micro_service_state(self):
         services = []
-        for service in self.os.block_storage._list(Service):
-            services.append({'binary': service.binary, 'host': service.host, 'status': service.status, 'state': service.state})
-        self._updateMicroServiceMetrics(services)
-
+        for service in self.openstack.block_storage._list(Service):
+            services.append({'binary': service.binary, 'host': service.host,
+                             'status': service.status, 'state': service.state})
+        self._update_micro_service_metrics(services)

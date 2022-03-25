@@ -1,25 +1,31 @@
-
+"""
+Compute / Nova collector
+"""
+import json
+import logging
+from prometheus_client import Gauge, Info, Enum
 from collector_api_base import CollectorAPIBase
 from resources_dummy import DummyApiVersions
-from prometheus_client import Gauge, Info, Enum
-import json
 
 
-import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 class CollectorAPICompute(CollectorAPIBase):
+    """
+    Nova
+    """
+    # pylint: disable=fixme, too-many-arguments
     def __init__(
             self,
             config,
-            os,
+            openstack,
             metrics,
             api_name,
             project_name,
             name_prefix
-            ):
+        ):
         self.host_measurements = {
-            'vcpus':'vcpus', 'vcpus_used':'vcpus_used', 
+            'vcpus':'vcpus', 'vcpus_used':'vcpus_used',
             'running_vms':'running_vms',
             'ram_used_bytes':'memory_used', 'ram_size_bytes':'memory_size', 'ram_free_bytes':'memory_free',
             'local_disk_size_bytes':'local_disk_size', 'local_disk_used_bytes':'local_disk_used', 'local_disk_free_bytes':'local_disk_free',
@@ -27,36 +33,46 @@ class CollectorAPICompute(CollectorAPIBase):
             'current_workload':'current_workload',
         }
         self.data = {}
-        super().__init__(config, os, metrics, api_name, project_name, name_prefix, [DummyApiVersions])
+        super().__init__(config, openstack, metrics, api_name, project_name, name_prefix,
+                         [DummyApiVersions])
 
 
-    def initMetrics(self):
+    def init_metrics(self):
         for measurement in self.host_measurements:
-            self.metrics[measurement] = Gauge(self.name_prefix + measurement, '', ['host', 'name', 'aggregates'])
+            self.metrics[measurement] = Gauge(
+                self.name_prefix + measurement, '', ['host', 'name', 'aggregates'])
 
-        self.metrics['hypervisor_state'] =  Enum(self.name_prefix + 'hypervisor_state', '', ['host', 'name', 'aggregates'], states=['up', 'down'])
-        self.metrics['hypervisor_status'] = Enum(self.name_prefix + 'hypervisor_status','', ['host', 'name', 'aggregates'], states=['enabled', 'disabled'])
-        self.metrics['hypervisor_info'] =   Info(self.name_prefix + 'hypervisor',  '',      ['host'])
-        self.metrics['aggregates_info'] =   Info(self.name_prefix + 'aggregates','',        ['name'])
+        self.metrics['hypervisor_state'] = Enum(
+            self.name_prefix + 'hypervisor_state', '', ['host', 'name', 'aggregates'],
+            states=['up', 'down'])
+        self.metrics['hypervisor_status'] = Enum(
+            self.name_prefix + 'hypervisor_status', '', ['host', 'name', 'aggregates'],
+            states=['enabled', 'disabled'])
+        self.metrics['hypervisor_info'] = Info(
+            self.name_prefix + 'hypervisor', '', ['host'])
+        self.metrics['aggregates_info'] = Info(
+            self.name_prefix + 'aggregates', '', ['name'])
         self.data['aggregates'] = {}
         self.data['hosts'] = {}
 
 
-    def collectMicroServiceState(self):
+    def collect_micro_service_state(self):
         services = []
-        for service in self.os.compute.services():
-            logger.debug (service)
-            services.append({'binary': service.binary, 'host': service.host, 'status': service.status, 'state': service.state})
-        self._updateMicroServiceMetrics(services)
+        for service in self.openstack.compute.services():
+            LOGGER.debug (service)
+            services.append({'binary': service.binary, 'host': service.host,
+                             'status': service.status, 'state': service.state})
+        self._update_micro_service_metrics(services)
 
-    def collectApiSpecificData(self):
+    def collect_api_specific_data(self):
         aggregates = {}
         current = {}
-        for aggregate in self.os.compute.aggregates():
+        for aggregate in self.openstack.compute.aggregates():
             if not aggregate.deleted: 
-                item=(aggregate.name)
+                item = (aggregate.name)
                 current[item] = 1
-                self.metrics['aggregates_info'].labels(aggregate.name).info({'id': str(aggregate.id), 'hosts': ",".join(aggregate.hosts)})
+                self.metrics['aggregates_info'].labels(aggregate.name).info(
+                    {'id': str(aggregate.id), 'hosts': ",".join(aggregate.hosts)})
                 for hypervisor in aggregate.hosts:
                     if not hypervisor in aggregates:
                         aggregates[hypervisor] = aggregate.name
@@ -69,7 +85,7 @@ class CollectorAPICompute(CollectorAPIBase):
         self.data['aggregates'] = current
 
         current = {}
-        for hypervisor in self.os.compute.hypervisors(details=True):
+        for hypervisor in self.openstack.compute.hypervisors(details=True):
             host = hypervisor.name.split('.')[0]
             if host in aggregates:
                 item=(host, hypervisor.name, aggregates[host])
@@ -89,15 +105,15 @@ class CollectorAPICompute(CollectorAPIBase):
             self.metrics['hypervisor_state'].labels(*list(item)).state(hypervisor.state)
             self.metrics['hypervisor_status'].labels(*list(item)).state(hypervisor.status)
             self.metrics['hypervisor_info'].labels(host).info({
-                    'name': str(hypervisor.name), 
-                    'aggregates': str(aggregates[host]), 
-                    'arch': str(cpu_info['arch']), 
-                    'model': str(cpu_info['model']),
-                    'ip': str(hypervisor.host_ip),
-                    'vcpus': str(hypervisor.vcpus),
-                    'ram_gb': str(hypervisor.memory_size),
-                    'disk_gb': str(hypervisor.local_disk_size),
-                    })
+                'name': str(hypervisor.name), 
+                'aggregates': str(aggregates[host]), 
+                'arch': str(cpu_info['arch']), 
+                'model': str(cpu_info['model']),
+                'ip': str(hypervisor.host_ip),
+                'vcpus': str(hypervisor.vcpus),
+                'ram_gb': str(hypervisor.memory_size),
+                'disk_gb': str(hypervisor.local_disk_size),
+            })
 
         # remove host items which are no longer present
         for item in self.data['hosts']:
