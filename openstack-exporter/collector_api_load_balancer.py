@@ -206,7 +206,6 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
             if item not in current:
                 LOGGER.debug("Removing lb: {}".format(item))
                 self.savely_remove_labels('lb_operating_status', item)
-                self.savely_remove_labels('lb_operating_status', item)
                 self.savely_remove_labels('lb_admin_status', item)
                 self.savely_remove_labels('lb_provisioning_status', item)
                 self.savely_remove_labels('lb_info', item)
@@ -214,8 +213,8 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
                     self.savely_remove_labels(measurement, item)
                 for measurement in self.lb_couters:
                     self.savely_remove_labels(measurement, item)
-                if item in self.data['lb_counters_current'][measurement]:
-                    del self.data['lb_counters_current'][measurement][item]
+                    if item in self.data['lb_counters_current'][measurement]:
+                        del self.data['lb_counters_current'][measurement][item]
         self.data['lbs'] = current
 
         ###################
