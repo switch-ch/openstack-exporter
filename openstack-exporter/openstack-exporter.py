@@ -16,12 +16,20 @@ from prometheus_client import start_http_server
 
 from collector import Collector
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-    )
-
 LOGGER = logging.getLogger(__name__)
+
+def configure_logging():
+    """
+    Retrieve logging config from the environment and configure accordingly.
+    """
+    verbosity = os.getenv('OS_EXPORTER_LOG_LEVEL', default="INFO")
+    if verbosity not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
+        verbosity = "INFO"
+    logging.basicConfig(
+        level=verbosity,
+        format="%(asctime)s:%(levelname)s:%(message)s"
+    )
+    LOGGER.info("Logging configured.")
 
 def get_config():
     """
@@ -49,6 +57,8 @@ def get_config():
 
 
 if __name__ == '__main__':
+
+    configure_logging()
 
     CONFIG = get_config()
 
