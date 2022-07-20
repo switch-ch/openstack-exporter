@@ -21,7 +21,7 @@ Standard following standard openstack authentication env-variables:
 
 Other config parameters:
 
-* LISTEN PORT
+* OS_EXPORTER_LISTEN_PORT
   - port to bind to. Default: 9103
 * OS_EXPORTER_API_EXCLUDE
   - coma separated list of APIs that should not be polled. Use project name from keystone catalog. E.g. designate not dns... Default: ''
