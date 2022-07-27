@@ -3,14 +3,14 @@
 There is confustion about api vs service. Unlike openstack documentation, the library calls apis services. This exporter sticks to documentation. APIs are refered to as api not service.
 An API is then build using multiple microservices.
 
-e.g. 
+e.g.
 
 - API: nova
 - Micro Services: nova-compute, nova-api, nova-conductor, nova-scheduler, ...
 
 ## Environment
 
-Standard following standard openstack authentication env-variables: 
+Standard following standard openstack authentication env-variables:
 - OS_AUTH_URL
 - OS_USERNAME
 - OS_PASSWORD
@@ -29,6 +29,12 @@ Other config parameters:
   - how often the exporter should refresh it's data. Default = 60
 * OS_EXPORTER_METRIC_PREFIX
   - prometheus metric names prefix. Default = 'openstack'
+
+The following environment variables may be use to tune the collections:
+* OS_EXPORTER_LB_COLLECT_LB_STATS
+  - whether or not to collect the load balancers stats. This has performance impact. Default = True.
+* OS_EXPORTER_LB_COLLECT_MEMBER_STATS
+  - whether or not to collect the load balancers member stats. This has performance impact. Default = True.
 
 ## Usage
 

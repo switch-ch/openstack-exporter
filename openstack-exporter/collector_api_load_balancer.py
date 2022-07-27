@@ -62,21 +62,22 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
             self.name_prefix + 'lb_provisioning_status', '', lb_labels,
             states=provisioning_statuses)
 
-        self.lb_gauges = {
-            'lb_active_connections':'active_connections', 
-        }
-        for measurement in self.lb_gauges:
-            self.metrics[measurement] = Gauge(self.name_prefix + measurement, '', lb_labels)
+        if self.config['load_balancer']['collect_member_stats']:
+            self.lb_gauges = {
+                'lb_active_connections':'active_connections',
+            }
+            for measurement in self.lb_gauges:
+                self.metrics[measurement] = Gauge(self.name_prefix + measurement, '', lb_labels)
 
-        self.data['lb_counters_current'] = {}
-        self.lb_couters = {
-            'lb_in_bytes':'bytes_in', 'lb_out_bytes':'bytes_out', 
-            'lb_connections':'total_connections',
-            'lb_request_errors':'request_errors', 
-        }
-        for measurement in self.lb_couters:
-            self.metrics[measurement] = Counter(self.name_prefix + measurement, '', lb_labels)
-            self.data['lb_counters_current'][measurement] = {}
+            self.data['lb_counters_current'] = {}
+            self.lb_couters = {
+                'lb_in_bytes':'bytes_in', 'lb_out_bytes':'bytes_out',
+                'lb_connections':'total_connections',
+                'lb_request_errors':'request_errors',
+            }
+            for measurement in self.lb_couters:
+                self.metrics[measurement] = Counter(self.name_prefix + measurement, '', lb_labels)
+                self.data['lb_counters_current'][measurement] = {}
 
         # listenener
         self.data['listeneners'] = {}
@@ -108,16 +109,17 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
             self.name_prefix + 'pool_operating_status', '', pool_labels, states=operating_statuses)
 
         # member
-        self.data['members'] = {}
-        member_labels = ['id', 'name', 'project_id', 'loadbalancers', 'listeners', 'pool_id']
-        self.metrics['member_admin_status'] = Enum(
-            self.name_prefix + 'member_admin_status', '', member_labels, states=admin_statuses)
-        self.metrics['member_provisioning_status'] = Enum(
-            self.name_prefix + 'member_provisioning_status', '', member_labels,
-            states=provisioning_statuses)
-        self.metrics['member_operating_status'] = Enum(
-            self.name_prefix + 'member_operating_status', '', member_labels,
-            states=operating_statuses)
+        if self.config['load_balancer']['collect_member_stats']:
+            self.data['members'] = {}
+            member_labels = ['id', 'name', 'project_id', 'loadbalancers', 'listeners', 'pool_id']
+            self.metrics['member_admin_status'] = Enum(
+                self.name_prefix + 'member_admin_status', '', member_labels, states=admin_statuses)
+            self.metrics['member_provisioning_status'] = Enum(
+                self.name_prefix + 'member_provisioning_status', '', member_labels,
+                states=provisioning_statuses)
+            self.metrics['member_operating_status'] = Enum(
+                self.name_prefix + 'member_operating_status', '', member_labels,
+                states=operating_statuses)
 
         # health monitor
         self.data['hms'] = {}
@@ -165,42 +167,47 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
                     self.data['project_name'][lb.project_id] = project.name
                     project_name = project.name
 
-            try:
-                self.disable_stats_collection()
-                stats = self.openstack.load_balancer.get_load_balancer_statistics(lb.id)
-                self.enable_stats_collection()
-            # pylint: disable=fixme, bare-except
-            except:
-                # It's possible that the lb disapears before retrieving the stats
-                # -> we just ignore it then.
-                stats = None
-                self.enable_stats_collection()
-            if stats:
-                for measurement, attribute in self.lb_gauges.items():
-                    self.metrics[measurement].labels(*list(item)).set(stats[attribute])
-                for measurement, attribute in self.lb_couters.items():
-                    if item in self.data['lb_counters_current'][measurement]:
-                        diff = stats[attribute] - self.data['lb_counters_current'][measurement][item]
-                        if diff > 0:
-                            # it is possible that counters are reset -> the prometheus lib does not like that.
-                            # not sure if ignoreing this fact is the proper thing to do though
-                            self.metrics[measurement].labels(*list(item)).inc(diff)
-                    else:
-                        self.metrics[measurement].labels(*list(item)).inc(0)
-                    self.data['lb_counters_current'][measurement][item] = stats[attribute]
+            self.metrics['lb_operating_status'].labels(*list(item)).state(lb.operating_status)
+            self.metrics['lb_admin_status'].labels(*list(item)).state(
+                self._admin_state_to_string(lb.is_admin_state_up))
+            self.metrics['lb_provisioning_status'].labels(*list(item)).state(
+                lb.provisioning_status)
+            self.metrics['lb_info'].labels(lb.id).info({
+                'name': lb.name,
+                'project_id': lb.project_id,
+                'project_name': project_name,
+                'vip_address': lb.vip_address,
+                'vip_port_id': lb.vip_port_id,
+            })
 
-                self.metrics['lb_operating_status'].labels(*list(item)).state(lb.operating_status)
-                self.metrics['lb_admin_status'].labels(*list(item)).state(
-                    self._admin_state_to_string(lb.is_admin_state_up))
-                self.metrics['lb_provisioning_status'].labels(*list(item)).state(
-                    lb.provisioning_status)
-                self.metrics['lb_info'].labels(lb.id).info({
-                    'name': lb.name,
-                    'project_id': lb.project_id,
-                    'project_name': project_name,
-                    'vip_address': lb.vip_address,
-                    'vip_port_id': lb.vip_port_id,
-                })
+            if not self.config['load_balancer']['collect_lb_stats']:
+                LOGGER.debug("LB stats collection is disabled. Skipping.")
+            else:
+                try:
+                    self.disable_stats_collection()
+                    stats = self.openstack.load_balancer.get_load_balancer_statistics(lb.id)
+                    LOGGER.debug(stats)
+                    self.enable_stats_collection()
+                # pylint: disable=fixme, bare-except
+                except:
+                    # It's possible that the lb disapears before retrieving the stats
+                    # -> we just ignore it then.
+                    stats = None
+                    self.enable_stats_collection()
+                if stats:
+                    for measurement, attribute in self.lb_gauges.items():
+                        self.metrics[measurement].labels(*list(item)).set(stats[attribute])
+                    for measurement, attribute in self.lb_couters.items():
+                        if item in self.data['lb_counters_current'][measurement]:
+                            diff = stats[attribute] - self.data['lb_counters_current'][measurement][item]
+                            if diff > 0:
+                                # it is possible that counters are reset -> the prometheus lib does not like that.
+                                # not sure if ignoreing this fact is the proper thing to do though
+                                self.metrics[measurement].labels(*list(item)).inc(diff)
+                        else:
+                            self.metrics[measurement].labels(*list(item)).inc(0)
+                        self.data['lb_counters_current'][measurement][item] = stats[attribute]
+
         # remove lbs which are no longer present
         for item in self.data['lbs']:
             if item not in current:
@@ -276,38 +283,40 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
 
             ###################
             # member
-            current_member = {}
-            if not pool.id in self.data['members']:
-                self.data['members'][pool.id] = {}
+            if not self.config['load_balancer']['collect_member_stats']:
+                LOGGER.debug("LB Member stats collection is disabled. Skipping.")
+            else:
+                current_member = {}
+                if not pool.id in self.data['members']:
+                    self.data['members'][pool.id] = {}
 
-            try:
-                self.disable_stats_collection()
-                for member in self.openstack.load_balancer.members(pool.id):
-                    member_item = (member.id, member.name, pool.project_id, lbs, listeners, pool.id)
-                    current_member[member_item] = 1
+                try:
+                    self.disable_stats_collection()
+                    for member in self.openstack.load_balancer.members(pool.id):
+                        member_item = (member.id, member.name, pool.project_id, lbs, listeners, pool.id)
+                        current_member[member_item] = 1
 
-                    self.metrics['member_admin_status'].labels(*list(member_item)).state(
-                        self._admin_state_to_string(member.is_admin_state_up))
-                    self.metrics['member_provisioning_status'].labels(*list(member_item)).state(
-                        pool.provisioning_status)
-                    self.metrics['member_operating_status'].labels(*list(member_item)).state(
-                        pool.operating_status)
-                self.enable_stats_collection()
+                        self.metrics['member_admin_status'].labels(*list(member_item)).state(
+                            self._admin_state_to_string(member.is_admin_state_up))
+                        self.metrics['member_provisioning_status'].labels(*list(member_item)).state(
+                            pool.provisioning_status)
+                        self.metrics['member_operating_status'].labels(*list(member_item)).state(
+                            pool.operating_status)
+                    self.enable_stats_collection()
 
-            except ResourceNotFound:
-                # it is possible that the pool was removed in the meantime 
-                # -> we ignore the members then.
-                self.enable_stats_collection()
+                except ResourceNotFound:
+                    # it is possible that the pool was removed in the meantime
+                    # -> we ignore the members then.
+                    self.enable_stats_collection()
 
-            # remove pools which are no longer present
-            for member_item in self.data['members'][pool.id]:
-                if member_item not in current_member:
-                    LOGGER.debug("Removing member: {}".format(member_item))
-                    self.savely_remove_labels('member_admin_status', member_item)
-                    self.savely_remove_labels('member_provisioning_status', member_item)
-                    self.savely_remove_labels('member_operating_status', member_item)
-            self.data['members'][pool.id] = current_member
-
+                # remove pools which are no longer present
+                for member_item in self.data['members'][pool.id]:
+                    if member_item not in current_member:
+                        LOGGER.debug("Removing member: {}".format(member_item))
+                        self.savely_remove_labels('member_admin_status', member_item)
+                        self.savely_remove_labels('member_provisioning_status', member_item)
+                        self.savely_remove_labels('member_operating_status', member_item)
+                self.data['members'][pool.id] = current_member
 
         # remove pools which are no longer present
         for item in self.data['pools']:
