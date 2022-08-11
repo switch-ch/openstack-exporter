@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 """
-Prometheus Openstack Exporter, collect openstack api metrics and export them on web site where prometheus can poll them. 
+Prometheus Openstack Exporter, collect openstack api metrics and export them on web site where prometheus can poll them.
 """
 
 import os
@@ -41,9 +41,9 @@ def get_config():
 
     # coma separated list of api to be ignored in polling
     configuration['api-exclude'] = os.getenv('OS_EXPORTER_API_EXCLUDE', default="").split(',')
-    configuration['listen-port'] = os.getenv('OS_EXPORTER_LISTEN_PORT', default=9103)
+    configuration['listen-port'] = int(os.getenv('OS_EXPORTER_LISTEN_PORT', default=9103))
     configuration['metric_prefix'] = os.getenv('OS_EXPORTER_METRIC_PREFIX', default='openstack')
-    configuration['interval'] = os.getenv('OS_EXPORTER_INTERVAL_SECONDS', default='60')
+    configuration['interval'] = int(os.getenv('OS_EXPORTER_INTERVAL_SECONDS', default=60))
 
     return configuration
 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     COLLECTOR = Collector(CONFIG)
 
-    # we use schedule library with threads to make sure it runs at regular intervals 
+    # we use schedule library with threads to make sure it runs at regular intervals
     # see: https://schedule.readthedocs.io/en/stable/parallel-execution.html
     # we use only one threads for the jobs:
     # - no need to check if all libs are thread save
