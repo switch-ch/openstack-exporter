@@ -24,10 +24,10 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
             name_prefix
         ):
         self.data = {}
-        super().__init__(config, openstack, metrics, api_name, project_name, name_prefix,
-                         [DummyApiVersions1Up])
         self.lb_gauges = {}
         self.lb_couters = {}
+        super().__init__(config, openstack, metrics, api_name, project_name, name_prefix,
+                    [DummyApiVersions1Up])
 
     def _admin_state_to_string(self, state):
         if state:
@@ -63,16 +63,16 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
             states=provisioning_statuses)
 
         self.lb_gauges = {
-            'lb_active_connections':'active_connections', 
+            'lb_active_connections':'active_connections',
         }
         for measurement in self.lb_gauges:
             self.metrics[measurement] = Gauge(self.name_prefix + measurement, '', lb_labels)
 
         self.data['lb_counters_current'] = {}
         self.lb_couters = {
-            'lb_in_bytes':'bytes_in', 'lb_out_bytes':'bytes_out', 
+            'lb_in_bytes':'bytes_in', 'lb_out_bytes':'bytes_out',
             'lb_connections':'total_connections',
-            'lb_request_errors':'request_errors', 
+            'lb_request_errors':'request_errors',
         }
         for measurement in self.lb_couters:
             self.metrics[measurement] = Counter(self.name_prefix + measurement, '', lb_labels)
@@ -134,11 +134,11 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
         self.data['amphorae'] = {}
         amphora_labels = ['id', 'loadbalancer_id', 'project_id']
         self.metrics['amphora_status'] = Enum(
-            self.name_prefix + 'amphora_status', '', amphora_labels, 
+            self.name_prefix + 'amphora_status', '', amphora_labels,
             states=['BOOTING', 'ALLOCATED', 'READY', 'PENDING_CREATE',
                     'PENDING_DELETE', 'DELETED', 'ERROR'])
         self.metrics['amphora_role'] = Enum(
-            self.name_prefix + 'amphora_role', '', amphora_labels, 
+            self.name_prefix + 'amphora_role', '', amphora_labels,
             states=['STANDALONE', 'MASTER', 'BACKUP'])
         self.metrics['amphora_cert_expiration'] = Gauge(
             self.name_prefix + 'amphora_cert_expiration', '', amphora_labels)
@@ -165,6 +165,7 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
                     self.data['project_name'][lb.project_id] = project.name
                     project_name = project.name
 
+
             try:
                 self.disable_stats_collection()
                 stats = self.openstack.load_balancer.get_load_balancer_statistics(lb.id)
@@ -189,18 +190,18 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
                         self.metrics[measurement].labels(*list(item)).inc(0)
                     self.data['lb_counters_current'][measurement][item] = stats[attribute]
 
-                self.metrics['lb_operating_status'].labels(*list(item)).state(lb.operating_status)
-                self.metrics['lb_admin_status'].labels(*list(item)).state(
-                    self._admin_state_to_string(lb.is_admin_state_up))
-                self.metrics['lb_provisioning_status'].labels(*list(item)).state(
-                    lb.provisioning_status)
-                self.metrics['lb_info'].labels(lb.id).info({
-                    'name': lb.name,
-                    'project_id': lb.project_id,
-                    'project_name': project_name,
-                    'vip_address': lb.vip_address,
-                    'vip_port_id': lb.vip_port_id,
-                })
+            self.metrics['lb_operating_status'].labels(*list(item)).state(lb.operating_status)
+            self.metrics['lb_admin_status'].labels(*list(item)).state(
+                self._admin_state_to_string(lb.is_admin_state_up))
+            self.metrics['lb_provisioning_status'].labels(*list(item)).state(
+                lb.provisioning_status)
+            self.metrics['lb_info'].labels(lb.id).info({
+                'name': lb.name,
+                'project_id': lb.project_id,
+                'project_name': project_name,
+                'vip_address': lb.vip_address,
+                'vip_port_id': lb.vip_port_id,
+            })
         # remove lbs which are no longer present
         for item in self.data['lbs']:
             if item not in current:
@@ -295,7 +296,7 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
                 self.enable_stats_collection()
 
             except ResourceNotFound:
-                # it is possible that the pool was removed in the meantime 
+                # it is possible that the pool was removed in the meantime
                 # -> we ignore the members then.
                 self.enable_stats_collection()
 
@@ -343,7 +344,7 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
                 listeners.append(self.data['pools_data']['listeners'][pool['id']])
             pools = ",".join(pools)
             lbs = ",".join(lbs)
-            listeners = ",".join(listeners)            
+            listeners = ",".join(listeners)
 
             item = (hm.id, hm.name, hm.project_id, lbs, listeners, pools)
             current[item] = 1
