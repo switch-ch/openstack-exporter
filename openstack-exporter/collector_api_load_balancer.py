@@ -62,7 +62,7 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
             self.name_prefix + 'lb_provisioning_status', '', lb_labels,
             states=provisioning_statuses)
 
-        if self.config['load_balancer']['collect_member_stats']:
+        if self.config['load_balancer']['collect_lb_stats']:
             self.lb_gauges = {
                 'lb_active_connections':'active_connections',
             }
