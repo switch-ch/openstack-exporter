@@ -21,7 +21,7 @@ Standard following standard openstack authentication env-variables:
 
 Other config parameters:
 
-* LISTEN PORT
+* OS_EXPORTER_LISTEN_PORT
   - port to bind to. Default: 9103
 * OS_EXPORTER_API_EXCLUDE
   - coma separated list of APIs that should not be polled. Use project name from keystone catalog. E.g. designate not dns... Default: ''
@@ -35,6 +35,8 @@ The following environment variables may be use to tune the collections:
   - whether or not to collect the load balancers stats. This has performance impact. Default = True.
 * OS_EXPORTER_LB_COLLECT_MEMBER_STATS
   - whether or not to collect the load balancers member stats. This has performance impact. Default = True.
+* OS_EXPORTER_LOG_LEVEL
+  - logging level. Must be one of DEBUG, INFO, WARNING or ERROR. Default = "INFO"
 
 ## Usage
 

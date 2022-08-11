@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 """
-Prometheus Openstack Exporter, collect openstack api metrics and export them on web site where prometheus can poll them. 
+Prometheus Openstack Exporter, collect openstack api metrics and export them on web site where prometheus can poll them.
 """
 
 import os
@@ -16,12 +16,20 @@ from prometheus_client import start_http_server
 
 from collector import Collector
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-    )
-
 LOGGER = logging.getLogger(__name__)
+
+def configure_logging():
+    """
+    Retrieve logging config from the environment and configure accordingly.
+    """
+    verbosity = os.getenv('OS_EXPORTER_LOG_LEVEL', default="INFO")
+    if verbosity not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
+        verbosity = "INFO"
+    logging.basicConfig(
+        level=verbosity,
+        format="%(asctime)s:%(levelname)s:%(message)s"
+    )
+    LOGGER.info("Logging configured.")
 
 def get_config():
     """
@@ -41,9 +49,10 @@ def get_config():
             sys.exit(1)
 
     # coma separated list of api to be ignored in polling
-    configuration['listen-port'] = os.getenv('OS_EXPORTER_LISTEN_PORT', default=9103)
+    configuration['api-exclude'] = os.getenv('OS_EXPORTER_API_EXCLUDE', default="").split(',')
+    configuration['listen-port'] = int(os.getenv('OS_EXPORTER_LISTEN_PORT', default=9103))
     configuration['metric_prefix'] = os.getenv('OS_EXPORTER_METRIC_PREFIX', default='openstack')
-    configuration['interval'] = os.getenv('OS_EXPORTER_INTERVAL_SECONDS', default='60')
+    configuration['interval'] = int(os.getenv('OS_EXPORTER_INTERVAL_SECONDS', default=60))
 
     # colllection specific config
     configuration['api-exclude'] = os.getenv('OS_EXPORTER_API_EXCLUDE', default="").split(',')
@@ -55,6 +64,8 @@ def get_config():
 
 if __name__ == '__main__':
 
+    configure_logging()
+
     CONFIG = get_config()
 
     # metrics server that can be polled by prometheus
@@ -62,7 +73,7 @@ if __name__ == '__main__':
 
     COLLECTOR = Collector(CONFIG)
 
-    # we use schedule library with threads to make sure it runs at regular intervals 
+    # we use schedule library with threads to make sure it runs at regular intervals
     # see: https://schedule.readthedocs.io/en/stable/parallel-execution.html
     # we use only one threads for the jobs:
     # - no need to check if all libs are thread save

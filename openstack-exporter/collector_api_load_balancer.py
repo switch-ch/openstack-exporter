@@ -24,10 +24,10 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
             name_prefix
         ):
         self.data = {}
-        super().__init__(config, openstack, metrics, api_name, project_name, name_prefix,
-                         [DummyApiVersions1Up])
         self.lb_gauges = {}
         self.lb_couters = {}
+        super().__init__(config, openstack, metrics, api_name, project_name, name_prefix,
+                    [DummyApiVersions1Up])
 
     def _admin_state_to_string(self, state):
         if state:
@@ -136,11 +136,11 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
         self.data['amphorae'] = {}
         amphora_labels = ['id', 'loadbalancer_id', 'project_id']
         self.metrics['amphora_status'] = Enum(
-            self.name_prefix + 'amphora_status', '', amphora_labels, 
+            self.name_prefix + 'amphora_status', '', amphora_labels,
             states=['BOOTING', 'ALLOCATED', 'READY', 'PENDING_CREATE',
                     'PENDING_DELETE', 'DELETED', 'ERROR'])
         self.metrics['amphora_role'] = Enum(
-            self.name_prefix + 'amphora_role', '', amphora_labels, 
+            self.name_prefix + 'amphora_role', '', amphora_labels,
             states=['STANDALONE', 'MASTER', 'BACKUP'])
         self.metrics['amphora_cert_expiration'] = Gauge(
             self.name_prefix + 'amphora_cert_expiration', '', amphora_labels)
@@ -167,6 +167,34 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
                     self.data['project_name'][lb.project_id] = project.name
                     project_name = project.name
 
+<<<<<<< HEAD
+=======
+
+            try:
+                self.disable_stats_collection()
+                stats = self.openstack.load_balancer.get_load_balancer_statistics(lb.id)
+                self.enable_stats_collection()
+            # pylint: disable=fixme, bare-except
+            except:
+                # It's possible that the lb disapears before retrieving the stats
+                # -> we just ignore it then.
+                stats = None
+                self.enable_stats_collection()
+            if stats:
+                for measurement, attribute in self.lb_gauges.items():
+                    self.metrics[measurement].labels(*list(item)).set(stats[attribute])
+                for measurement, attribute in self.lb_couters.items():
+                    if item in self.data['lb_counters_current'][measurement]:
+                        diff = stats[attribute] - self.data['lb_counters_current'][measurement][item]
+                        if diff > 0:
+                            # it is possible that counters are reset -> the prometheus lib does not like that.
+                            # not sure if ignoreing this fact is the proper thing to do though
+                            self.metrics[measurement].labels(*list(item)).inc(diff)
+                    else:
+                        self.metrics[measurement].labels(*list(item)).inc(0)
+                    self.data['lb_counters_current'][measurement][item] = stats[attribute]
+
+>>>>>>> main
             self.metrics['lb_operating_status'].labels(*list(item)).state(lb.operating_status)
             self.metrics['lb_admin_status'].labels(*list(item)).state(
                 self._admin_state_to_string(lb.is_admin_state_up))
@@ -179,6 +207,7 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
                 'vip_address': lb.vip_address,
                 'vip_port_id': lb.vip_port_id,
             })
+<<<<<<< HEAD
 
             if not self.config['load_balancer']['collect_lb_stats']:
                 LOGGER.debug("LB stats collection is disabled. Skipping.")
@@ -208,6 +237,8 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
                             self.metrics[measurement].labels(*list(item)).inc(0)
                         self.data['lb_counters_current'][measurement][item] = stats[attribute]
 
+=======
+>>>>>>> main
         # remove lbs which are no longer present
         for item in self.data['lbs']:
             if item not in current:
@@ -283,6 +314,7 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
 
             ###################
             # member
+<<<<<<< HEAD
             if not self.config['load_balancer']['collect_member_stats']:
                 LOGGER.debug("LB Member stats collection is disabled. Skipping.")
             else:
@@ -317,6 +349,40 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
                         self.savely_remove_labels('member_provisioning_status', member_item)
                         self.savely_remove_labels('member_operating_status', member_item)
                 self.data['members'][pool.id] = current_member
+=======
+            current_member = {}
+            if not pool.id in self.data['members']:
+                self.data['members'][pool.id] = {}
+
+            try:
+                self.disable_stats_collection()
+                for member in self.openstack.load_balancer.members(pool.id):
+                    member_item = (member.id, member.name, pool.project_id, lbs, listeners, pool.id)
+                    current_member[member_item] = 1
+
+                    self.metrics['member_admin_status'].labels(*list(member_item)).state(
+                        self._admin_state_to_string(member.is_admin_state_up))
+                    self.metrics['member_provisioning_status'].labels(*list(member_item)).state(
+                        pool.provisioning_status)
+                    self.metrics['member_operating_status'].labels(*list(member_item)).state(
+                        pool.operating_status)
+                self.enable_stats_collection()
+
+            except ResourceNotFound:
+                # it is possible that the pool was removed in the meantime
+                # -> we ignore the members then.
+                self.enable_stats_collection()
+
+            # remove pools which are no longer present
+            for member_item in self.data['members'][pool.id]:
+                if member_item not in current_member:
+                    LOGGER.debug("Removing member: {}".format(member_item))
+                    self.savely_remove_labels('member_admin_status', member_item)
+                    self.savely_remove_labels('member_provisioning_status', member_item)
+                    self.savely_remove_labels('member_operating_status', member_item)
+            self.data['members'][pool.id] = current_member
+
+>>>>>>> main
 
         # remove pools which are no longer present
         for item in self.data['pools']:
@@ -352,7 +418,7 @@ class CollectorAPILoadBalancer(CollectorAPIBase):
                 listeners.append(self.data['pools_data']['listeners'][pool['id']])
             pools = ",".join(pools)
             lbs = ",".join(lbs)
-            listeners = ",".join(listeners)            
+            listeners = ",".join(listeners)
 
             item = (hm.id, hm.name, hm.project_id, lbs, listeners, pools)
             current[item] = 1
