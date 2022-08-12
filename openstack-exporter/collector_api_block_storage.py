@@ -31,11 +31,10 @@ class CollectorAPIBlockStorage(CollectorAPIBase):
                          [DummyApiVersions1Up])
 
     def init_metrics(self):
+        operating_statuses = ['CREATING', 'AVAILABLE', 'RESERVED', 'ATTACHING', 'DETACHING', 'IN-USE', 'MAINTENANCE', 'DELETING', 'AWAITING-TRANSFER', 'ERROR', 'ERROR_DELETING', 'BACKING-UP', 'RESTORING-BACKUP', 'ERROR_BACKING-UP', 'ERROR_RESTORING', 'ERROR_EXTENDING', 'DOWNLOADING', 'UPLOADING', 'RETYPING', 'EXTENDING']
         self.data['volumes'] = {}
         self.metrics['volumes'] = Gauge(
             self.name_prefix + 'volumes', '', ['status'])
-
-        operating_statuses = ['AVAILABLE', 'IN-USE', 'ATTACHING', 'RESERVED' ]
         volume_labels = ['id', 'name', 'project_id']
         self.metrics['volume_status'] = Enum(
             self.name_prefix + 'volume_status', '', volume_labels, states=operating_statuses)
@@ -52,8 +51,8 @@ class CollectorAPIBlockStorage(CollectorAPIBase):
         data = {}
         for status in self.data['volumes']:
             data[status] = 0
-        for volume in self.openstack.block_storage._list(Volume, base_path="/volumes/detail",
-                                                         all_projects=True):
+        for volume in self.openstack.block_storage._list(Volume, base_path="/volumes/detail", all_projects=True):
+            print(volume)
             item = (volume.id, volume.name, volume.project_id)
             self.metrics['volume_status'].labels(*list(item)).state(volume.status.upper())
             if (volume.status != "in-use" and volume.status != "available"):
