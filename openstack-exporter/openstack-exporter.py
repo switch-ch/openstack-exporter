@@ -37,6 +37,7 @@ def get_config():
     """
 
     configuration = {}
+    configuration["load_balancer"] = dict()
 
     # check that mandatory openstack environment variables are present
     # we don't read them into config since openstacksdk get's them directly from the environment
@@ -52,6 +53,11 @@ def get_config():
     configuration['listen-port'] = int(os.getenv('OS_EXPORTER_LISTEN_PORT', default=9103))
     configuration['metric_prefix'] = os.getenv('OS_EXPORTER_METRIC_PREFIX', default='openstack')
     configuration['interval'] = int(os.getenv('OS_EXPORTER_INTERVAL_SECONDS', default=60))
+
+    # colllection specific config
+    configuration['api-exclude'] = os.getenv('OS_EXPORTER_API_EXCLUDE', default="").split(',')
+    configuration['load_balancer']['collect_member_stats'] = os.getenv("OS_EXPORTER_LB_COLLECT_MEMBER_STATS", "True").lower() in (True, 'true', '1', 't')
+    configuration['load_balancer']['collect_lb_stats'] = os.getenv("OS_EXPORTER_LB_COLLECT_LB_STATS", "True").lower() in (True, 'true', '1', 't')
 
     return configuration
 

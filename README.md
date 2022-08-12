@@ -29,6 +29,12 @@ Other config parameters:
   - how often the exporter should refresh it's data. Default = 60
 * OS_EXPORTER_METRIC_PREFIX
   - prometheus metric names prefix. Default = 'openstack'
+
+The following environment variables may be use to tune the collections:
+* OS_EXPORTER_LB_COLLECT_LB_STATS
+  - whether or not to collect the load balancers stats. This has performance impact. Default = True.
+* OS_EXPORTER_LB_COLLECT_MEMBER_STATS
+  - whether or not to collect the load balancers member stats. This has performance impact. Default = True.
 * OS_EXPORTER_LOG_LEVEL
   - logging level. Must be one of DEBUG, INFO, WARNING or ERROR. Default = "INFO"
 
