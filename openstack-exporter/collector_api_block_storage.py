@@ -65,5 +65,12 @@ class CollectorAPIBlockStorage(CollectorAPIBase):
             data[volume.status] += 1
         for status in data:
             self.metrics['volumes'].labels(status).set(data[status])
-        self.data['volumes'] = data
+#        self.data['volumes'] = data
         LOGGER.debug(data)
+
+        for item in self.data['volumes']:
+            if item not in data:
+                LOGGER.debug("Removing Non-existing volumes: {}".format(item))
+                self.savely_remove_labels('volumes_status', item)
+                self.savely_remove_labels('volumes', item)
+        self.data['volumes'] = data
