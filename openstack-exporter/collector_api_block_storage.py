@@ -3,7 +3,7 @@ Volume / Cinder collector
 """
 import datetime
 import logging
-from prometheus_client import Gauge
+from prometheus_client import Gauge, Enum
 from collector_api_base import CollectorAPIBase
 from resources_block_storage import Service
 from resources_dummy import DummyApiVersions1Up
@@ -35,6 +35,11 @@ class CollectorAPIBlockStorage(CollectorAPIBase):
         self.metrics['volumes'] = Gauge(
             self.name_prefix + 'volumes', '', ['status'])
 
+        operating_statuses = ['AVAILABLE', 'IN-USE', 'ATTACHING', 'RESERVED' ]
+        volume_labels = ['id', 'name', 'project_id']
+        self.metrics['volume_status'] = Enum(
+            self.name_prefix + 'volume_status', '', volume_labels, states=operating_statuses)
+
     def collect_micro_service_state(self):
         services = []
         for service in self.openstack.block_storage._list(Service):
@@ -49,6 +54,8 @@ class CollectorAPIBlockStorage(CollectorAPIBase):
             data[status] = 0
         for volume in self.openstack.block_storage._list(Volume, base_path="/volumes/detail",
                                                          all_projects=True):
+            item = (volume.id, volume.name, volume.project_id)
+            self.metrics['volume_status'].labels(*list(item)).state(volume.status.upper())
             if (volume.status != "in-use" and volume.status != "available"):
                 if datetime.datetime.strptime(volume.updated_at, "%Y-%m-%dT%H:%M:%S.000000") + VOLUMES_WRONG_STATE_WAIT_TIME < datetime.datetime.now():
                     LOGGER.warning("Volume %s in project %s stuck in status %s since %s",
