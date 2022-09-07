@@ -48,29 +48,15 @@ class CollectorAPIBlockStorage(CollectorAPIBase):
 
     def collect_api_specific_data(self):
         # volumes
-        data = {}
-        for status in self.data['volumes']:
-            data[status] = 0
+        current = {}
         for volume in self.openstack.block_storage._list(Volume, base_path="/volumes/detail", all_projects=True):
-            print(volume)
             item = (volume.id, volume.name, volume.project_id)
+            current[item] = 1
             self.metrics['volume_status'].labels(*list(item)).state(volume.status.upper())
-            if (volume.status != "in-use" and volume.status != "available"):
-                if datetime.datetime.strptime(volume.updated_at, "%Y-%m-%dT%H:%M:%S.000000") + VOLUMES_WRONG_STATE_WAIT_TIME < datetime.datetime.now():
-                    LOGGER.warning("Volume %s in project %s stuck in status %s since %s",
-                                   volume.id, volume.project_id, volume.status, volume.updated_at)
-            if not volume.status in data:
-                data[volume.status] = {}
-                data[volume.status] = 0
-            data[volume.status] += 1
-        for status in data:
-            self.metrics['volumes'].labels(status).set(data[status])
-#        self.data['volumes'] = data
-        LOGGER.debug(data)
 
+        # Remove volumes which are no longer present
         for item in self.data['volumes']:
-            if item not in data:
-                LOGGER.debug("Removing Non-existing volumes: {}".format(item))
-                self.savely_remove_labels('volumes_status', item)
-                self.savely_remove_labels('volumes', item)
-        self.data['volumes'] = data
+            if item not in current:
+                LOGGER.debug("Removing non-existing volume: {}".format(item))
+                self.savely_remove_labels('volume_status', item)
+        self.data['volumes'] = current
