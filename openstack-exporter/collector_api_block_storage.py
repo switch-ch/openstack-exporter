@@ -31,7 +31,12 @@ class CollectorAPIBlockStorage(CollectorAPIBase):
                          [DummyApiVersions1Up])
 
     def init_metrics(self):
-        operating_statuses = ['CREATING', 'AVAILABLE', 'RESERVED', 'ATTACHING', 'DETACHING', 'IN-USE', 'MAINTENANCE', 'DELETING', 'AWAITING-TRANSFER', 'ERROR', 'ERROR_DELETING', 'BACKING-UP', 'RESTORING-BACKUP', 'ERROR_BACKING-UP', 'ERROR_RESTORING', 'ERROR_EXTENDING', 'DOWNLOADING', 'UPLOADING', 'RETYPING', 'EXTENDING']
+        operating_statuses = [
+                'CREATING', 'AVAILABLE', 'RESERVED', 'ATTACHING', 'DETACHING', 'IN-USE', 
+                'MAINTENANCE', 'DELETING', 'AWAITING-TRANSFER', 'ERROR', 'ERROR_DELETING', 'BACKING-UP', 
+                'RESTORING-BACKUP', 'ERROR_BACKING-UP', 'ERROR_RESTORING', 'ERROR_EXTENDING', 
+                'DOWNLOADING', 'UPLOADING', 'RETYPING', 'EXTENDING'
+        ]
         self.data['volumes'] = {}
         self.metrics['volumes'] = Gauge(
             self.name_prefix + 'volumes', '', ['status'])
