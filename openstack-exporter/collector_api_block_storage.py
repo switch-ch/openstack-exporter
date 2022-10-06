@@ -3,7 +3,7 @@ Volume / Cinder collector
 """
 import datetime
 import logging
-from prometheus_client import Gauge
+from prometheus_client import Gauge, Enum
 from collector_api_base import CollectorAPIBase
 from resources_block_storage import Service
 from resources_dummy import DummyApiVersions1Up
@@ -31,9 +31,18 @@ class CollectorAPIBlockStorage(CollectorAPIBase):
                          [DummyApiVersions1Up])
 
     def init_metrics(self):
+        operating_statuses = [
+                'CREATING', 'AVAILABLE', 'RESERVED', 'ATTACHING', 'DETACHING', 'IN-USE', 
+                'MAINTENANCE', 'DELETING', 'AWAITING-TRANSFER', 'ERROR', 'ERROR_DELETING', 'BACKING-UP', 
+                'RESTORING-BACKUP', 'ERROR_BACKING-UP', 'ERROR_RESTORING', 'ERROR_EXTENDING', 
+                'DOWNLOADING', 'UPLOADING', 'RETYPING', 'EXTENDING'
+        ]
         self.data['volumes'] = {}
         self.metrics['volumes'] = Gauge(
             self.name_prefix + 'volumes', '', ['status'])
+        volume_labels = ['id', 'name', 'project_id']
+        self.metrics['volume_status'] = Enum(
+            self.name_prefix + 'volume_status', '', volume_labels, states=operating_statuses)
 
     def collect_micro_service_state(self):
         services = []
@@ -44,20 +53,15 @@ class CollectorAPIBlockStorage(CollectorAPIBase):
 
     def collect_api_specific_data(self):
         # volumes
-        data = {}
-        for status in self.data['volumes']:
-            data[status] = 0
-        for volume in self.openstack.block_storage._list(Volume, base_path="/volumes/detail",
-                                                         all_projects=True):
-            if (volume.status != "in-use" and volume.status != "available"):
-                if datetime.datetime.strptime(volume.updated_at, "%Y-%m-%dT%H:%M:%S.000000") + VOLUMES_WRONG_STATE_WAIT_TIME < datetime.datetime.now():
-                    LOGGER.warning("Volume %s in project %s stuck in status %s since %s",
-                                   volume.id, volume.project_id, volume.status, volume.updated_at)
-            if not volume.status in data:
-                data[volume.status] = {}
-                data[volume.status] = 0
-            data[volume.status] += 1
-        for status in data:
-            self.metrics['volumes'].labels(status).set(data[status])
-        self.data['volumes'] = data
-        LOGGER.debug(data)
+        current = {}
+        for volume in self.openstack.block_storage._list(Volume, base_path="/volumes/detail", all_projects=True):
+            item = (volume.id, volume.name, volume.project_id)
+            current[item] = 1
+            self.metrics['volume_status'].labels(*list(item)).state(volume.status.upper())
+
+        # Remove volumes which are no longer present
+        for item in self.data['volumes']:
+            if item not in current:
+                LOGGER.debug("Removing non-existing volume: {}".format(item))
+                self.savely_remove_labels('volume_status', item)
+        self.data['volumes'] = current
